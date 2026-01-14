@@ -1,0 +1,1 @@
+added line in android manifest xml for allowing app to talk with server using wifi of phone
