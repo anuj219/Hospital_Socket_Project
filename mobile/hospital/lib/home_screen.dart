@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import 'socket_service.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class NurseHomeScreen extends StatefulWidget {
+  final Map<dynamic, dynamic> patient;
+  const NurseHomeScreen({super.key, required this.patient});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<NurseHomeScreen> createState() => _NurseHomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _NurseHomeScreenState extends State<NurseHomeScreen> {
   double _heartRate = 75;
   double _spo2 = 98;
-  String _patientId = "Room 302";
-  String _serverStatus = "Disconnected";
+  String _statusMessage = "System Ready";
 
-  // Function to send data
-  void _sendUpdate({required bool isEmergency, String? msg}) async {
-    Map<String, dynamic> payload = {
-      "patient_id": _patientId,
+  void _sendData(bool isEmergency) async {
+    setState(() => _statusMessage = "Sending...");
+
+    final response = await SocketService.sendMessage({
+      "action": "LOG_DATA",
+      "patient_id": widget.patient['id'],
       "heart_rate": _heartRate.toInt(),
       "spo2": _spo2.toInt(),
       "is_emergency": isEmergency ? 1 : 0,
-      "message": msg ?? (isEmergency ? "Manual Emergency Triggered" : "Routine Check")
-    };
+      "message": isEmergency ? "EMERGENCY ALERT: Room ${widget.patient['room']}" : "Routine Log"
+    });
 
-    String response = await SocketService.sendData(payload);
     setState(() {
-      _serverStatus = response;
+      _statusMessage = response.containsKey('error') ? "Error: Server Offline" : "Server: Success";
     });
   }
 
@@ -35,96 +36,88 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isUnsafe = _heartRate > 120 || _heartRate < 50 || _spo2 < 90;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text("VitalSync Nurse Terminal"),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: Text("Monitoring: ${widget.patient['name']}")),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Patient Info Card
-            Card(
-              elevation: 4,
-              child: ListTile(
-                leading: Icon(Icons.person, color: Colors.blue, size: 40),
-                title: Text("Patient: John Doe", style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("ID: $_patientId | Ward: B-Wing"),
+            // Patient Info Header
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: isUnsafe ? Colors.red[50] : Colors.blue[50],
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: isUnsafe ? Colors.red : Colors.blue),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.monitor_heart, color: isUnsafe ? Colors.red : Colors.blue, size: 40),
+                  const SizedBox(width: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.patient['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text("Room: ${widget.patient['room']} | ID: ${widget.patient['id']}"),
+                    ],
+                  )
+                ],
               ),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
-            // Vitals Simulation Section
-            Text("Simulate Vitals", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Divider(),
-            
             // Heart Rate Slider
-            Text("Heart Rate: ${_heartRate.toInt()} BPM"),
+            Text("Heart Rate: ${_heartRate.toInt()} BPM", style: const TextStyle(fontSize: 16)),
             Slider(
               value: _heartRate,
-              min: 30, max: 180,
-              divisions: 150,
+              min: 40, max: 180,
               activeColor: _heartRate > 120 ? Colors.red : Colors.green,
-              onChanged: (val) => setState(() => _heartRate = val),
+              onChanged: (v) => setState(() => _heartRate = v),
             ),
 
+            const SizedBox(height: 20),
+
             // SpO2 Slider
-            Text("Oxygen Level (SpO2): ${_spo2.toInt()}%"),
+            Text("Oxygen Level (SpO2): ${_spo2.toInt()}%", style: const TextStyle(fontSize: 16)),
             Slider(
               value: _spo2,
               min: 70, max: 100,
-              divisions: 30,
               activeColor: _spo2 < 90 ? Colors.red : Colors.blue,
-              onChanged: (val) => setState(() => _spo2 = val),
+              onChanged: (v) => setState(() => _spo2 = v),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 40),
 
-            // Automated logic warning
-            if (isUnsafe)
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.red.withOpacity(0.1),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.red),
-                    SizedBox(width: 10),
-                    Text("Vitals Unsafe! Alert recommended.", style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-
-            SizedBox(height: 30),
-
-            // Buttons Section
+            // Action Buttons
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _sendUpdate(isEmergency: false),
-                    child: Text("Log Vitals"),
-                    style: ElevatedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 15)),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _sendData(false),
+                    icon: const Icon(Icons.history),
+                    label: const Text("Log Vitals"),
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _sendUpdate(isEmergency: true, msg: "CODE BLUE - Critical Condition"),
-                    child: Text("EMERGENCY"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                    ),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _sendData(true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                    icon: const Icon(Icons.warning),
+                    label: const Text("EMERGENCY"),
                   ),
                 ),
               ],
             ),
-
-            SizedBox(height: 40),
-            Center(child: Text("Server Status: $_serverStatus", style: TextStyle(color: Colors.grey))),
+            
+            const SizedBox(height: 30),
+            
+            // Status Monitor Area
+            Container(
+              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
+              child: Text(_statusMessage, style: const TextStyle(color: Colors.greenAccent, fontFamily: 'monospace')),
+            ),
           ],
         ),
       ),

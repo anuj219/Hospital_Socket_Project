@@ -7,17 +7,17 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # 1. Enable Foreign Key support
+    # enable fk supprot
     cursor.execute("PRAGMA foreign_keys = ON;")
 
-    # 2. Patients Table (Master Table)
+    # patients Table
     cursor.execute('''CREATE TABLE IF NOT EXISTS patients (
                         patient_id TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         age INTEGER,
                         room TEXT)''')
 
-    # 3. Patient Logs Table (Linked via Foreign Key)
+    # patient logs table
     cursor.execute('''CREATE TABLE IF NOT EXISTS patient_logs (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         patient_id TEXT,
@@ -28,7 +28,7 @@ def init_db():
                         timestamp TEXT,
                         FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE)''')
     
-    # 4. Insert dummy patients if table is empty (for testing)
+    # insert dummy patients if table is empty (for testing)
     cursor.execute("SELECT COUNT(*) FROM patients")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO patients VALUES ('P101', 'John Doe', 45, 'Room 302')")
