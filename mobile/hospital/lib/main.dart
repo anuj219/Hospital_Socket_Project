@@ -2,48 +2,38 @@ import 'package:flutter/material.dart';
 import 'socket_service.dart';
 import 'home_screen.dart';
 
-void main() {
-  runApp(const VitalSyncApp());
-}
+void main() => runApp(const HospitalApp());
 
-class VitalSyncApp extends StatelessWidget {
-  const VitalSyncApp({super.key});
-
+class HospitalApp extends StatelessWidget {
+  const HospitalApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      ),
-      home: const PatientSelectionScreen(),
-    );
+    return MaterialApp(debugShowCheckedModeBanner: false, 
+    theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue), 
+    home: const PatientSelectionScreen());
   }
 }
 
 class PatientSelectionScreen extends StatefulWidget {
   const PatientSelectionScreen({super.key});
-
   @override
   State<PatientSelectionScreen> createState() => _PatientSelectionScreenState();
 }
 
 class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
+  final TextEditingController _ipController = TextEditingController(text: "192.168.");
   List<dynamic> _patients = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPatients();
-  }
+  bool _isLoading = false;
 
   void _loadPatients() async {
-    final response = await SocketService.sendMessage({"action": "FETCH_PATIENTS"});
+    setState(() => _isLoading = true);
+    final response = await SocketService.sendMessage(_ipController.text, {"action": "FETCH_PATIENTS"});
+    
     setState(() {
       if (response is List) {
         _patients = response;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to connect to Server")));
       }
       _isLoading = false;
     });
@@ -52,29 +42,49 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Hospital Ward B"), centerTitle: true),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: _patients.length,
-              itemBuilder: (context, index) {
-                final p = _patients[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(p['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("ID: ${p['id']} | Room: ${p['room']}"),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => NurseHomeScreen(patient: p)),
-                    ),
+      appBar: AppBar(title: const Text("Hospital Login")),
+      body: Column(
+        children: [
+          // IP INPUT SECTION
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ipController,
+                    decoration: const InputDecoration(labelText: "Server IP Address", border: OutlineInputBorder()),
+                    keyboardType: TextInputType.number,
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(onPressed: _loadPatients, child: const Text("Connect")),
+              ],
             ),
+          ),
+          const Divider(),
+          // PATIENT LIST SECTION
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: _patients.length,
+                    itemBuilder: (context, index) {
+                      final p = _patients[index];
+                      return ListTile(
+                        leading: const CircleAvatar(child: Icon(Icons.person)),
+                        title: Text(p['name']),
+                        subtitle: Text("ID: ${p['id']} | ${p['room']}"),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => NurseHomeScreen(patient: p, serverIp: _ipController.text)),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

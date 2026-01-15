@@ -3,7 +3,8 @@ import 'socket_service.dart';
 
 class NurseHomeScreen extends StatefulWidget {
   final Map<dynamic, dynamic> patient;
-  const NurseHomeScreen({super.key, required this.patient});
+  final String serverIp;
+  const NurseHomeScreen({super.key, required this.patient, required this.serverIp});
 
   @override
   State<NurseHomeScreen> createState() => _NurseHomeScreenState();
@@ -17,13 +18,13 @@ class _NurseHomeScreenState extends State<NurseHomeScreen> {
   void _sendData(bool isEmergency) async {
     setState(() => _statusMessage = "Sending...");
 
-    final response = await SocketService.sendMessage({
+    final response = await SocketService.sendMessage(widget.serverIp, {
       "action": "LOG_DATA",
       "patient_id": widget.patient['id'],
       "heart_rate": _heartRate.toInt(),
       "spo2": _spo2.toInt(),
       "is_emergency": isEmergency ? 1 : 0,
-      "message": isEmergency ? "EMERGENCY ALERT: Room ${widget.patient['room']}" : "Routine Log"
+      "message": isEmergency ? "EMERGENCY: Room ${widget.patient['room']}" : "Routine Log"
     });
 
     setState(() {
@@ -115,7 +116,6 @@ class _NurseHomeScreenState extends State<NurseHomeScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               width: double.infinity,
-              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
               child: Text(_statusMessage, style: const TextStyle(color: Colors.greenAccent, fontFamily: 'monospace')),
             ),
           ],
