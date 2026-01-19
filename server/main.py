@@ -7,7 +7,8 @@ PORT = 5000
 
 def start_server():
     database.init_db()
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+
     server.bind((HOST, PORT))
     server.listen(5)
     print(f"[*] Hospital Server running on port {PORT} ...")
@@ -28,6 +29,9 @@ def start_server():
                 print("[*] Sent patient list to app")
 
             elif action == "LOG_DATA":
+
+                # This is the Bi-directional response. The server transmits an acknowledgment and dispatch info back to the nurse, closing the communication loop."
+                
                 database.add_log(
                     request.get("patient_id"),
                     request.get("heart_rate"),
@@ -36,9 +40,21 @@ def start_server():
                     request.get("message"),
                 )
 
-                client_socket.send(
-                    json.dumps({"status": "SUCCESS"}).encode("utf-8")
-                )
+                if request.get("is_emergency") == 1:  # its an emergency
+                    response = {
+                        "status": "CRITICAL",
+                        "doctor_assigned": "Dr. House",    # ive hardcoded it for now, for demonstation purpose
+                        "eta": "2 mins",
+                        "msg": "EMERGENCY LOGGED: Help is on the way!"
+                    }
+                else:  # It's Routine
+                    response = {
+                        "status": "OK",
+                        "msg": "Vitals recorded successfully."
+                    }
+
+                client_socket.send(json.dumps(response).encode('utf-8'))
+
                 print(f"[*] Logged data for {request.get('patient_id')}")
 
         except Exception as e:

@@ -9,6 +9,7 @@ def init_db():
     
     # enable fk supprot
     cursor.execute("PRAGMA foreign_keys = ON;")
+    # explicitly enable Foreign Key support in SQLite to maintain strict relational integrity across our tables
 
     # patients Table
     cursor.execute('''CREATE TABLE IF NOT EXISTS patients (
@@ -16,6 +17,7 @@ def init_db():
                         name TEXT NOT NULL,
                         age INTEGER,
                         room TEXT)''')
+    
 
     # patient logs table
     cursor.execute('''CREATE TABLE IF NOT EXISTS patient_logs (
@@ -28,7 +30,7 @@ def init_db():
                         timestamp TEXT,
                         FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE)''')
     
-    conn.commit()
+    conn.commit()    # saves changes permanently to the database, needed after crud ops
     conn.close()
 
 def get_all_patients():
